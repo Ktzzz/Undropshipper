@@ -283,12 +283,28 @@ function SectionBanner({ variant, icon, title, desc, pill, pillClass }) {
   );
 }
 
+function NotFoundCard() {
+  return (
+    <div className="not-found-card">
+      <span className="nf-icon">🔍</span>
+      <div className="nf-body">
+        <h4>Introuvable sur les grandes plateformes</h4>
+        <p>Aucun produit similaire détecté sur Amazon, AliExpress ou eBay. Les articles revendus en dropshipping proviennent généralement de ces sources — ne pas les trouver est un <strong>signal positif d'originalité</strong>.</p>
+      </div>
+      <span className="nf-badge">✅ Possiblement original</span>
+    </div>
+  );
+}
+
 function ResultsGrid({ results }) {
   const originals = results.filter((r) => r.isOriginal);
   const others = results.filter((r) => !r.isOriginal);
+
+  if (results.length === 0) return <NotFoundCard />;
+
   return (
     <>
-      {originals.length > 0 && (
+      {originals.length > 0 ? (
         <section className="results-section">
           <SectionBanner
             variant="original"
@@ -300,14 +316,19 @@ function ResultsGrid({ results }) {
           />
           <div className="results-grid">{originals.map((item, i) => <ResultCard key={i} item={item} />)}</div>
         </section>
+      ) : (
+        <div className="no-source-note">
+          <span>🏭</span>
+          <p>Source fabricant introuvable sur AliExpress/Alibaba — le produit est peut-être une création originale ou une marque propre.</p>
+        </div>
       )}
       {others.length > 0 && (
         <section className="results-section">
           <SectionBanner
             variant="compare"
             icon="🛒"
-            title="Comparaison plateformes"
-            desc="Le même produit vendu sur Amazon, eBay, AliExpress et d'autres marchés — compare les prix avant d'acheter."
+            title="Produits similaires sur d'autres plateformes"
+            desc="Résultats basés sur les mots-clés du produit — vérifiez visuellement que les articles proposés ressemblent bien à ce que vous cherchez."
             pill={`${others.length} résultat${others.length > 1 ? 's' : ''}`}
           />
           <div className="results-grid">{others.map((item, i) => <ResultCard key={i} item={item} />)}</div>
@@ -428,10 +449,11 @@ function SiteMode() {
                     <h3>{p.nom}</h3>
                     <span className="pill site-price">Site : {p.prix_site}</span>
                   </div>
-                  {productResults[p.nom]?.results?.length > 0
-                    ? <ResultsGrid results={productResults[p.nom].results} />
-                    : !loadingProducts && <p className="no-results">Aucun résultat trouvé pour ce produit.</p>
-                  }
+                  {!loadingProducts && (
+                    productResults[p.nom]
+                      ? <ResultsGrid results={productResults[p.nom].results} />
+                      : null
+                  )}
                 </section>
               ))}
             </>

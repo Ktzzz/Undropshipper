@@ -91,12 +91,13 @@ Réponds UNIQUEMENT avec un JSON valide (sans markdown) dans ce format exact :
     {
       "nom": "nom du produit en français",
       "prix_site": "prix affiché sur le site",
-      "mots_cles": "keywords anglais pour chercher l'original sur Amazon/AliExpress"
+      "mots_cles": "mots-clés anglais TRÈS PRÉCIS pour trouver ce produit exact sur Google Shopping : inclure matière, coupe, couleur, style spécifique, type de vêtement — ex: 'ripstop tactical cargo pants olive green slim fit' et NON PAS juste 'cargo pants'"
     }
   ]
 }
 
 Indicateurs classiques de dropshipping : délais livraison 15-30 jours, ships from China, prix très bas, descriptions génériques, pas d'adresse physique, politique de retour compliquée, fautes d'orthographe, images génériques.
+IMPORTANT pour les mots_cles : sois le plus précis possible sur le produit exact. Si le produit a un design propriétaire ou un nom de marque distinctif, note-le. Si les produits semblent être des créations originales non copiées d'AliExpress, indique-le dans le verdict.
 Extrais jusqu'à 5 produits représentatifs trouvés sur le site.`;
 
     let lastError = null;
