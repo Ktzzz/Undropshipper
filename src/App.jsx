@@ -1,0 +1,366 @@
+import { useState, useRef } from 'react';
+import './App.css';
+
+const API = '/api';
+
+function Loader({ text = 'Analyse en cours...' }) {
+  return (
+    <div className="loader">
+      <div className="spinner" />
+      <span>{text}</span>
+    </div>
+  );
+}
+
+/* ── Image upload zone ── */
+function UploadZone({ onImage }) {
+  const [dragging, setDragging] = useState(false);
+  const [urlInput, setUrlInput] = useState('');
+  const [mode, setMode] = useState('upload');
+  const inputRef = useRef();
+
+  function handleFile(file) {
+    if (!file || !file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const base64 = e.target.result.split(',')[1];
+      onImage({ base64, mimeType: file.type, preview: e.target.result });
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function handleDrop(e) {
+    e.preventDefault();
+    setDragging(false);
+    handleFile(e.dataTransfer.files[0]);
+  }
+
+  function handleUrlSubmit(e) {
+    e.preventDefault();
+    if (urlInput.trim()) onImage({ url: urlInput.trim(), preview: urlInput.trim() });
+  }
+
+  return (
+    <div className="upload-section">
+      <div className="mode-toggle">
+        <button className={mode === 'upload' ? 'active' : ''} onClick={() => setMode('upload')}>📷 Fichier</button>
+        <button className={mode === 'url' ? 'active' : ''} onClick={() => setMode('url')}>🔗 URL image</button>
+      </div>
+
+      {mode === 'upload' ? (
+        <div
+          className={`drop-zone ${dragging ? 'dragging' : ''}`}
+          onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={handleDrop}
+          onClick={() => inputRef.current.click()}
+        >
+          <input ref={inputRef} type="file" accept="image/*" hidden onChange={(e) => handleFile(e.target.files[0])} />
+          <div className="drop-icon">📦</div>
+          <p>Glisse une image ici ou <span className="link">clique pour choisir</span></p>
+          <small>Capture d'écran, photo produit, screenshot d'annonce...</small>
+        </div>
+      ) : (
+        <form className="url-form" onSubmit={handleUrlSubmit}>
+          <input type="url" value={urlInput} onChange={(e) => setUrlInput(e.target.value)}
+            placeholder="https://example.com/image-produit.jpg" autoFocus />
+          <button type="submit">Analyser</button>
+        </form>
+      )}
+    </div>
+  );
+}
+
+/* ── Analysis card (image mode) ── */
+function AnalysisCard({ analysis }) {
+  return (
+    <div className="analysis-card">
+      <div className="analysis-top">
+        <div className="analysis-titles">
+          <span className="category-tag">{analysis.categorie}</span>
+          <h2>{analysis.nom}</h2>
+          <p className="analysis-desc">{analysis.description}</p>
+        </div>
+        <div className="price-compare">
+          <div className="price-item drop">
+            <small>💸 Dropshipping</small>
+            <strong>{analysis.prix_estime_dropshipping}</strong>
+          </div>
+          <div className="price-vs">VS</div>
+          <div className="price-item original">
+            <small>🏭 Fabricant</small>
+            <strong>{analysis.prix_estime_original}</strong>
+          </div>
+        </div>
+      </div>
+      <div className="tags">
+        {analysis.caracteristiques.map((c) => <span key={c} className="tag">{c}</span>)}
+        <span className="tag origin">🌍 {analysis.origine_probable}</span>
+      </div>
+    </div>
+  );
+}
+
+/* ── Site analysis card ── */
+function SiteAnalysisCard({ analysis }) {
+  const color = analysis.est_dropshipping ? '#f87171' : '#4ade80';
+  const label = analysis.est_dropshipping ? '🚨 Site de dropshipping' : '✅ Semble légitime';
+
+  return (
+    <div className="analysis-card site-card">
+      <div className="site-verdict" style={{ borderColor: color }}>
+        <div className="verdict-left">
+          <span className="verdict-label" style={{ color }}>{label}</span>
+          <p className="verdict-text">{analysis.verdict}</p>
+        </div>
+        <div className="confidence-ring">
+          <svg viewBox="0 0 36 36" className="ring-svg">
+            <path d="M18 2 a16 16 0 1 1 0 32 a16 16 0 1 1 0-32" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="3" />
+            <path d="M18 2 a16 16 0 1 1 0 32 a16 16 0 1 1 0-32" fill="none" stroke={color} strokeWidth="3"
+              strokeDasharray={`${analysis.confiance} 100`} strokeLinecap="round"
+              style={{ transformOrigin: '50% 50%', transform: 'rotate(-90deg)' }} />
+          </svg>
+          <span className="ring-label" style={{ color }}>{analysis.confiance}%</span>
+        </div>
+      </div>
+
+      {analysis.indicateurs?.length > 0 && (
+        <div className="indicators">
+          {analysis.indicateurs.map((ind, i) => (
+            <span key={i} className="indicator-tag">⚠️ {ind}</span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Result card (shopping) ── */
+const SOURCE_COLORS = { amazon: '#FF9900', aliexpress: '#FF4747', ebay: '#E53238', alibaba: '#FF6A00', wish: '#7B43D2', walmart: '#0071CE' };
+function getSourceColor(source = '') {
+  const key = Object.keys(SOURCE_COLORS).find((k) => source.toLowerCase().includes(k));
+  return key ? SOURCE_COLORS[key] : '#6b6b80';
+}
+
+function ResultCard({ item }) {
+  const color = getSourceColor(item.source);
+  return (
+    <a className={`result-card${item.isOriginal ? ' result-card--original' : ''}`} href={item.link} target="_blank" rel="noreferrer">
+      {item.isOriginal && <div className="original-banner">🏭 Source fabricant</div>}
+      <div className="result-img-wrap">
+        {item.image ? <img src={item.image} alt={item.title} /> : <div className="no-img">📦</div>}
+        <span className="source-badge" style={{ background: color }}>{item.source}</span>
+      </div>
+      <div className="result-body">
+        <p className="result-title">{item.title}</p>
+        <div className="result-footer">
+          <strong className={`result-price${item.isOriginal ? ' result-price--original' : ''}`}>{item.price ?? '—'}</strong>
+          {item.rating && <span className="result-rating">⭐ {item.rating}{item.reviews ? ` (${Number(item.reviews).toLocaleString('fr')})` : ''}</span>}
+        </div>
+        {item.delivery && <small className="result-delivery">{item.delivery}</small>}
+      </div>
+    </a>
+  );
+}
+
+/* ── Image mode ── */
+function ImageMode() {
+  const [preview, setPreview] = useState(null);
+  const [analysis, setAnalysis] = useState(null);
+  const [results, setResults] = useState([]);
+  const [loadingAnalysis, setLoadingAnalysis] = useState(false);
+  const [loadingSearch, setLoadingSearch] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleImage(imageData) {
+    setPreview(imageData.preview); setAnalysis(null); setResults([]);
+    setError(''); setLoadingAnalysis(true);
+    try {
+      const body = imageData.base64
+        ? { imageBase64: imageData.base64, mimeType: imageData.mimeType }
+        : { imageUrl: imageData.url };
+
+      const res = await fetch(`${API}/analyze`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setAnalysis(data); setLoadingAnalysis(false);
+
+      setLoadingSearch(true);
+      const searchRes = await fetch(`${API}/search`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: data.mots_cles_recherche }) });
+      const searchData = await searchRes.json();
+      if (searchData.error) throw new Error(searchData.error);
+      setResults(searchData);
+    } catch (err) {
+      setError(err.message); setLoadingAnalysis(false);
+    } finally { setLoadingSearch(false); }
+  }
+
+  if (!preview) return <UploadZone onImage={handleImage} />;
+
+  return (
+    <div className="results-layout">
+      <div className="preview-bar">
+        <div className="preview-img-wrap"><img src={preview} alt="Produit analysé" /></div>
+        <button className="reset-btn" onClick={() => { setPreview(null); setAnalysis(null); setResults([]); setError(''); }}>← Nouvelle analyse</button>
+      </div>
+      {error && <p className="error">{error}</p>}
+      {loadingAnalysis && <Loader text="Analyse de l'image en cours..." />}
+      {analysis && <AnalysisCard analysis={analysis} />}
+      {loadingSearch && <Loader text="Recherche sur toutes les plateformes..." />}
+      {results.length > 0 && (() => {
+        const originals = results.filter(r => r.isOriginal);
+        const others = results.filter(r => !r.isOriginal);
+        return (
+          <>
+            {originals.length > 0 && (
+              <section>
+                <div className="section-header">
+                  <h3>Source fabricant</h3>
+                  <span className="pill pill--original">{originals.length} original{originals.length > 1 ? 'aux' : ''}</span>
+                </div>
+                <div className="results-grid">{originals.map((item, i) => <ResultCard key={i} item={item} />)}</div>
+              </section>
+            )}
+            {others.length > 0 && (
+              <section>
+                <div className="section-header">
+                  <h3>Comparaison plateformes</h3>
+                  <span className="pill">{others.length} résultats</span>
+                </div>
+                <div className="results-grid">{others.map((item, i) => <ResultCard key={i} item={item} />)}</div>
+              </section>
+            )}
+          </>
+        );
+      })()}
+    </div>
+  );
+}
+
+/* ── Site mode ── */
+function SiteMode() {
+  const [urlInput, setUrlInput] = useState('');
+  const [siteAnalysis, setSiteAnalysis] = useState(null);
+  const [productResults, setProductResults] = useState({});
+  const [loadingSite, setLoadingSite] = useState(false);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleSiteAnalyze(e) {
+    e.preventDefault();
+    if (!urlInput.trim()) return;
+    setSiteAnalysis(null); setProductResults({}); setError(''); setLoadingSite(true);
+    try {
+      const res = await fetch(`${API}/analyze-site`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: urlInput.trim() }) });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setSiteAnalysis(data); setLoadingSite(false);
+
+      // Auto-search all detected products
+      if (data.produits?.length > 0) {
+        setLoadingProducts(true);
+        const searches = await Promise.all(
+          data.produits.map(async (p) => {
+            const r = await fetch(`${API}/search`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: p.mots_cles }) });
+            const d = await r.json();
+            return { nom: p.nom, prix_site: p.prix_site, results: Array.isArray(d) ? d.slice(0, 6) : [] };
+          })
+        );
+        const map = {};
+        searches.forEach((s) => { map[s.nom] = s; });
+        setProductResults(map);
+        setLoadingProducts(false);
+      }
+    } catch (err) {
+      setError(err.message); setLoadingSite(false); setLoadingProducts(false);
+    }
+  }
+
+  return (
+    <>
+      <form className="url-form site-url-form" onSubmit={handleSiteAnalyze}>
+        <input type="url" value={urlInput} onChange={(e) => setUrlInput(e.target.value)}
+          placeholder="https://boutique-suspecte.com" autoFocus />
+        <button type="submit" disabled={loadingSite}>{loadingSite ? 'Analyse...' : 'Analyser le site'}</button>
+      </form>
+
+      {error && <p className="error">{error}</p>}
+      {loadingSite && <Loader text="Analyse du site en cours..." />}
+
+      {siteAnalysis && (
+        <div className="results-layout">
+          <SiteAnalysisCard analysis={siteAnalysis} />
+
+          {siteAnalysis.produits?.length > 0 && (
+            <>
+              {loadingProducts && <Loader text="Recherche des originaux sur toutes les plateformes..." />}
+              {siteAnalysis.produits.map((p) => (
+                <section key={p.nom}>
+                  <div className="section-header">
+                    <h3>{p.nom}</h3>
+                    <span className="pill site-price">Site : {p.prix_site}</span>
+                  </div>
+                  {productResults[p.nom]?.results?.length > 0 ? (() => {
+                    const originals = productResults[p.nom].results.filter(r => r.isOriginal);
+                    const others = productResults[p.nom].results.filter(r => !r.isOriginal);
+                    return (
+                      <>
+                        {originals.length > 0 && (
+                          <>
+                            <div className="subsection-label">🏭 Source fabricant</div>
+                            <div className="results-grid" style={{ marginBottom: '16px' }}>
+                              {originals.map((item, i) => <ResultCard key={i} item={item} />)}
+                            </div>
+                          </>
+                        )}
+                        {others.length > 0 && (
+                          <>
+                            <div className="subsection-label">🛒 Comparaison</div>
+                            <div className="results-grid">
+                              {others.map((item, i) => <ResultCard key={i} item={item} />)}
+                            </div>
+                          </>
+                        )}
+                      </>
+                    );
+                  })() : !loadingProducts && (
+                    <p className="no-results">Aucun résultat trouvé pour ce produit.</p>
+                  )}
+                </section>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
+/* ── App root ── */
+export default function App() {
+  const [mode, setMode] = useState('image');
+
+  return (
+    <div className="app">
+      <header className="header">
+        <h1><span className="logo-icon">🔍</span> UnDropshipping</h1>
+        <p className="subtitle">Identifie l'origine réelle d'un produit dropshipping sur toutes les plateformes</p>
+      </header>
+
+      <div className="tabs">
+        <button className={mode === 'image' ? 'tab active' : 'tab'} onClick={() => setMode('image')}>
+          <span className="tab-icon">📷</span>
+          Analyser une image
+          <small style={{ fontWeight: 400, fontSize: '0.78rem', opacity: 0.6 }}>Photo, capture d'écran, URL</small>
+        </button>
+        <button className={mode === 'site' ? 'tab active' : 'tab'} onClick={() => setMode('site')}>
+          <span className="tab-icon">🌐</span>
+          Analyser un site
+          <small style={{ fontWeight: 400, fontSize: '0.78rem', opacity: 0.6 }}>Détecte le dropshipping</small>
+        </button>
+      </div>
+
+      {mode === 'image' ? <ImageMode /> : <SiteMode />}
+    </div>
+  );
+}
