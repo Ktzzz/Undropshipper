@@ -29,6 +29,8 @@ const IMAGE_MESSAGES = [
   "On épluche la base de données fabricants...",
   "Mission : retrouver l'original. En cours. 🎯",
   "L'IA ne dort jamais, contrairement aux livreurs.",
+  "Yomi Denzel quelque part en sueur 😰",
+  "Ton youtubeur préféré va perdre ses revenus 💸",
 ];
 
 const SITE_MESSAGES = [
@@ -56,6 +58,9 @@ const SITE_MESSAGES = [
   "On lit entre les lignes 📖",
   "Ces témoignages clients semblent vrais ou non ?",
   "Vérification du registre WHOIS du domaine...",
+  "Yomi Denzel en sueur en ce moment même 😰",
+  "Ton youtubeur préféré va perdre ses revenus 💸",
+  "Tu peux préparer le mail pour fermer le site Shopify 🔒",
 ];
 
 const SEARCH_MESSAGES = [
