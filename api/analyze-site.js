@@ -1,10 +1,11 @@
-async function getFreeModel(key) {
+async function getFreeModels(key) {
   const res = await fetch('https://openrouter.ai/api/v1/models', {
     headers: { Authorization: `Bearer ${key}` },
   });
   const data = await res.json();
-  const free = (data?.data ?? []).filter((m) => m.id.endsWith(':free'));
-  return free[0]?.id ?? null;
+  return (data?.data ?? [])
+    .filter((m) => m.id.endsWith(':free'))
+    .map((m) => m.id);
 }
 
 async function fetchSiteContent(url) {
@@ -36,6 +37,23 @@ async function fetchSiteContent(url) {
   return { title, description, text: clean };
 }
 
+async function tryModel(key, modelId, prompt) {
+  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: modelId,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  });
+  const data = await response.json();
+  if (data.error) throw new Error(data.error.message ?? JSON.stringify(data.error));
+  const raw = data.choices?.[0]?.message?.content?.trim();
+  if (!raw) throw new Error('Réponse vide');
+  const cleaned = raw.replace(/```json\s*|```/g, '').trim();
+  return { analysis: JSON.parse(cleaned), model: modelId };
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
@@ -46,12 +64,12 @@ export default async function handler(req, res) {
   if (!key) return res.status(500).json({ error: 'OPENROUTER_API_KEY missing' });
 
   try {
-    const [{ title, description, text }, model] = await Promise.all([
+    const [{ title, description, text }, models] = await Promise.all([
       fetchSiteContent(url),
-      getFreeModel(key),
+      getFreeModels(key),
     ]);
 
-    if (!model) return res.status(500).json({ error: 'Aucun modèle IA disponible' });
+    if (models.length === 0) return res.status(500).json({ error: 'Aucun modèle IA disponible' });
 
     const prompt = `Tu es un expert en e-commerce et dropshipping. Analyse ce contenu d'un site web et détermine s'il s'agit d'un site de dropshipping.
 
@@ -81,25 +99,17 @@ Réponds UNIQUEMENT avec un JSON valide (sans markdown) dans ce format exact :
 Indicateurs classiques de dropshipping : délais livraison 15-30 jours, ships from China, prix très bas, descriptions génériques, pas d'adresse physique, politique de retour compliquée, fautes d'orthographe, images génériques.
 Extrais jusqu'à 5 produits représentatifs trouvés sur le site.`;
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model,
-        messages: [{ role: 'user', content: prompt }],
-      }),
-    });
+    let lastError = null;
+    for (const modelId of models.slice(0, 5)) {
+      try {
+        const { analysis, model } = await tryModel(key, modelId, prompt);
+        return res.json({ ...analysis, _model: model, title, url });
+      } catch (err) {
+        lastError = err;
+      }
+    }
 
-    const data = await response.json();
-    if (data.error) throw new Error(data.error.message ?? JSON.stringify(data.error));
-
-    const raw = data.choices?.[0]?.message?.content?.trim();
-    if (!raw) throw new Error('Réponse vide du modèle');
-
-    const cleaned = raw.replace(/```json|```/g, '').trim();
-    const analysis = JSON.parse(cleaned);
-
-    res.json({ ...analysis, _model: model, title, url });
+    res.status(500).json({ error: `Tous les modèles ont échoué. Dernier : ${lastError?.message}` });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -1,24 +1,38 @@
-async function getFreeVisionModel(key) {
+async function getFreeVisionModels(key) {
   const res = await fetch('https://openrouter.ai/api/v1/models', {
     headers: { Authorization: `Bearer ${key}` },
   });
   const data = await res.json();
   const models = data?.data ?? [];
 
-  // Filter: free + supports image input
-  const freeVision = models.filter((m) => {
+  return models.filter((m) => {
     const isFree = m.pricing?.prompt === '0' || m.id.endsWith(':free');
-    const hasVision = m.architecture?.input_modalities?.includes('image') ||
+    const hasVision =
+      m.architecture?.input_modalities?.includes('image') ||
       m.architecture?.modality?.includes('image') ||
       m.id.toLowerCase().includes('vision') ||
       m.id.toLowerCase().includes('vl') ||
       m.id.toLowerCase().includes('gemini') ||
       m.id.toLowerCase().includes('llava');
     return isFree && hasVision;
-  });
+  }).map((m) => m.id);
+}
 
-  if (freeVision.length > 0) return freeVision[0].id;
-  return null;
+async function tryModel(key, modelId, imageContent, prompt) {
+  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: modelId,
+      messages: [{ role: 'user', content: [imageContent, { type: 'text', text: prompt }] }],
+    }),
+  });
+  const data = await response.json();
+  if (data.error) throw new Error(data.error.message ?? JSON.stringify(data.error));
+  const text = data.choices?.[0]?.message?.content?.trim();
+  if (!text) throw new Error('Réponse vide');
+  const cleaned = text.replace(/```json\s*|```/g, '').trim();
+  return { analysis: JSON.parse(cleaned), model: modelId };
 }
 
 export default async function handler(req, res) {
@@ -45,35 +59,24 @@ Réponds UNIQUEMENT avec un JSON valide (sans markdown, sans backticks) dans ce 
 }`;
 
   try {
-    const model = await getFreeVisionModel(key);
-    if (!model) return res.status(500).json({ error: 'Aucun modèle vision gratuit disponible sur OpenRouter.' });
+    const models = await getFreeVisionModels(key);
+    if (models.length === 0) return res.status(500).json({ error: 'Aucun modèle vision gratuit disponible.' });
 
     const imageContent = imageBase64
       ? { type: 'image_url', image_url: { url: `data:${mimeType || 'image/jpeg'};base64,${imageBase64}` } }
       : { type: 'image_url', image_url: { url: imageUrl } };
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${key}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model,
-        messages: [{ role: 'user', content: [imageContent, { type: 'text', text: prompt }] }],
-      }),
-    });
+    let lastError = null;
+    for (const modelId of models.slice(0, 5)) {
+      try {
+        const { analysis, model } = await tryModel(key, modelId, imageContent, prompt);
+        return res.json({ ...analysis, _model: model });
+      } catch (err) {
+        lastError = err;
+      }
+    }
 
-    const data = await response.json();
-    if (data.error) throw new Error(`[${model}] ${data.error.message ?? JSON.stringify(data.error)}`);
-
-    const text = data.choices?.[0]?.message?.content?.trim();
-    if (!text) throw new Error('Réponse vide du modèle');
-
-    const cleaned = text.replace(/```json|```/g, '').trim();
-    const analysis = JSON.parse(cleaned);
-
-    res.json({ ...analysis, _model: model });
+    res.status(500).json({ error: `Tous les modèles ont échoué. Dernier : ${lastError?.message}` });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
