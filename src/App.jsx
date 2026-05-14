@@ -242,9 +242,16 @@ function getSourceColor(source = '') {
 
 function ResultCard({ item }) {
   const color = getSourceColor(item.source);
+  const classes = [
+    'result-card',
+    item.isOriginal ? 'result-card--original' : '',
+    item.isBestValue ? 'result-card--best' : '',
+  ].filter(Boolean).join(' ');
+
   return (
-    <a className={`result-card${item.isOriginal ? ' result-card--original' : ''}`} href={item.link} target="_blank" rel="noreferrer">
-      {item.isOriginal && <div className="original-banner">🏭 Source fabricant</div>}
+    <a className={classes} href={item.link} target="_blank" rel="noreferrer">
+      {item.isBestValue && <div className="best-banner">🏆 Meilleur rapport qualité/prix</div>}
+      {item.isOriginal && !item.isBestValue && <div className="original-banner">🏭 Source fabricant</div>}
       <div className="result-img-wrap">
         {item.image ? <img src={item.image} alt={item.title} /> : <div className="no-img">📦</div>}
         <span className="source-badge" style={{ background: color }}>{item.source}</span>
