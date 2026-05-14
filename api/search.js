@@ -1,6 +1,13 @@
+// Platforms that are actual dropshipping/wholesale sources
+const DROPSHIP_PLATFORMS = ['aliexpress', 'alibaba', 'dhgate', 'temu', 'banggood', 'gearbest', 'chinabrands', 'shein', 'wish', 'cjdropshipping'];
+
+function isDropshippingSource(source = '', link = '') {
+  const s = (source + link).toLowerCase();
+  return DROPSHIP_PLATFORMS.some((p) => s.includes(p));
+}
+
 function parsePrice(str) {
   if (!str) return null;
-  // Handle "12,99" (European) and "$12.99" formats
   const cleaned = str.replace(/[^0-9.,]/g, '').replace(/,(\d{2})$/, '.$1').replace(',', '');
   const num = parseFloat(cleaned);
   return isNaN(num) || num <= 0 ? null : num;
@@ -11,7 +18,6 @@ function valueScore(item) {
   const rating = parseFloat(item.rating) || 0;
   const reviews = parseInt(item.reviews) || 0;
   if (!price || rating === 0) return 0;
-  // rating (0-5) weighted by review volume, divided by price
   return (rating * Math.log10(reviews + 10)) / price;
 }
 
@@ -35,7 +41,7 @@ export default async function handler(req, res) {
       return url.toString();
     }
 
-    function mapItem(item, isOriginal = false) {
+    function mapItem(item) {
       const rawLink = item.product_link ?? item.link ?? '';
       const link = rawLink.startsWith('http') ? rawLink : `https://www.google.com${rawLink}`;
       return {
@@ -47,12 +53,13 @@ export default async function handler(req, res) {
         rating: item.rating,
         reviews: item.reviews,
         delivery: item.delivery,
-        isOriginal,
+        // Only mark as original if it actually comes from a dropshipping/wholesale platform
+        isOriginal: isDropshippingSource(item.source ?? '', link),
       };
     }
 
     const [srcRes, genRes] = await Promise.all([
-      fetch(buildUrl(`${query} wholesale manufacturer aliexpress alibaba`)),
+      fetch(buildUrl(`${query} aliexpress alibaba wholesale`)),
       fetch(buildUrl(query)),
     ]);
 
@@ -60,15 +67,15 @@ export default async function handler(req, res) {
 
     if (srcData.error && genData.error) throw new Error(genData.error);
 
-    const srcResults = (srcData.shopping_results ?? []).slice(0, 4).map((i) => mapItem(i, true));
-    const genResults = (genData.shopping_results ?? []).map((i) => mapItem(i, false));
+    const srcResults = (srcData.shopping_results ?? []).slice(0, 6).map(mapItem);
+    const genResults = (genData.shopping_results ?? []).map(mapItem);
 
-    const srcTitles = new Set(srcResults.map((r) => r.title));
-    const deduped = genResults.filter((r) => !srcTitles.has(r.title));
-
+    // Merge: deduplicate by title, originals first
+    const allTitles = new Set(srcResults.map((r) => r.title));
+    const deduped = genResults.filter((r) => !allTitles.has(r.title));
     const all = [...srcResults, ...deduped];
 
-    // Mark best value: highest (rating × log(reviews) / price) score
+    // Mark best value
     const eligible = all.filter((r) => parsePrice(r.price) && r.rating);
     if (eligible.length > 0) {
       const best = eligible.reduce((a, b) => valueScore(a) >= valueScore(b) ? a : b);

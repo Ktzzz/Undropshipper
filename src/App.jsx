@@ -300,8 +300,6 @@ function ResultsGrid({ results }) {
   const originals = results.filter((r) => r.isOriginal);
   const others = results.filter((r) => !r.isOriginal);
 
-  if (results.length === 0) return <NotFoundCard />;
-
   return (
     <>
       {originals.length > 0 ? (
@@ -309,26 +307,23 @@ function ResultsGrid({ results }) {
           <SectionBanner
             variant="original"
             icon="🏭"
-            title="Source fabricant"
-            desc="Prix direct du fabricant ou grossiste — c'est là que le dropshipper s'approvisionne avant de revendre 2× à 5× plus cher."
-            pill={`${originals.length} produit${originals.length > 1 ? 's' : ''} trouvé${originals.length > 1 ? 's' : ''}`}
+            title="Trouvé sur AliExpress / Alibaba"
+            desc="Ce produit est disponible chez des fournisseurs dropshipping — il est probablement revendu avec une forte marge."
+            pill={`${originals.length} source${originals.length > 1 ? 's' : ''} trouvée${originals.length > 1 ? 's' : ''}`}
             pillClass="pill--original"
           />
           <div className="results-grid">{originals.map((item, i) => <ResultCard key={i} item={item} />)}</div>
         </section>
       ) : (
-        <div className="no-source-note">
-          <span>🏭</span>
-          <p>Source fabricant introuvable sur AliExpress/Alibaba — le produit est peut-être une création originale ou une marque propre.</p>
-        </div>
+        <NotFoundCard />
       )}
       {others.length > 0 && (
         <section className="results-section">
           <SectionBanner
             variant="compare"
             icon="🛒"
-            title="Produits similaires sur d'autres plateformes"
-            desc="Résultats basés sur les mots-clés du produit — vérifiez visuellement que les articles proposés ressemblent bien à ce que vous cherchez."
+            title="Produits similaires"
+            desc="Résultats approximatifs basés sur les mots-clés — vérifiez visuellement que ces articles ressemblent au produit recherché."
             pill={`${others.length} résultat${others.length > 1 ? 's' : ''}`}
           />
           <div className="results-grid">{others.map((item, i) => <ResultCard key={i} item={item} />)}</div>
