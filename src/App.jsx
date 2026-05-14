@@ -420,7 +420,7 @@ export default function App() {
   return (
     <div className="app">
       <header className="header">
-        <h1><span className="logo-icon">🔍</span> UnDropshipping</h1>
+        <h1><span className="logo-icon">🔍</span> UnDropshipper</h1>
         <p className="subtitle">Identifie l'origine réelle d'un produit dropshipping sur toutes les plateformes</p>
       </header>
 
