@@ -1,13 +1,106 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import './App.css';
 
 const API = '/api';
 
-function Loader({ text = 'Analyse en cours...' }) {
+/* ── Loading messages ── */
+const IMAGE_MESSAGES = [
+  "Alors, c'est du dropshipping ou pas... 🤔",
+  "L'IA inspecte chaque pixel du produit 🔍",
+  "On cherche ce truc sur AliExpress...",
+  "Ça ressemble à du Temu ou quoi ?",
+  "Calcul du markup frauduleux en cours 📊",
+  "On appelle nos contacts à Shenzhen 🏭",
+  "L'image parle, on écoute attentivement.",
+  "Identification du fournisseur original...",
+  "Ce produit, on l'a déjà vu quelque part...",
+  "Analyse des pixels suspects 👁️",
+  "On compare avec des millions de produits...",
+  "Traduction depuis le chinois en cours 🀄",
+  "Le fabricant ne sait pas qu'on le cherche 😏",
+  "Détection de l'emballage générique...",
+  "On fouille AliExpress de fond en comble 📦",
+  "Ce prix était trop beau pour être vrai, hein ?",
+  "Reconnaissance visuelle activée 🤖",
+  "On trace l'origine géographique du produit 🌍",
+  "Est-ce que c'est vraiment 'livraison rapide' ?",
+  "Les scammeurs ne font pas le poids face à l'IA.",
+  "Presque là... encore une seconde.",
+  "On épluche la base de données fabricants...",
+  "Mission : retrouver l'original. En cours. 🎯",
+  "L'IA ne dort jamais, contrairement aux livreurs.",
+];
+
+const SITE_MESSAGES = [
+  "Il est bien ce site ou pas ? 🤨",
+  "On va me les attraper ces scammeurs. 🕵️",
+  "Lecture des petites lignes du site...",
+  "Délais de livraison douteux ? On vérifie.",
+  "Ships from China ? On verra bien...",
+  "Analyse de l'adresse physique... ou pas.",
+  "On cherche les fautes d'orthographe suspectes 👀",
+  "La politique de retour dit quoi exactement ?",
+  "Comparaison avec les prix du marché réel...",
+  "On inspecte les descriptions produits 🖼️",
+  "À quelle date ce domaine a été créé ?",
+  "Les descriptions sont copiées-collées depuis AliExpress ?",
+  "Pas d'adresse ? Pas de téléphone ? Hmm... 🚩",
+  "On vérifie si c'est du Shopify générique...",
+  "Le dossier se constitue... 📁",
+  "Innocent jusqu'à preuve du contraire. Pour l'instant.",
+  "On scrute chaque recoin du site.",
+  "L'hébergement du serveur nous en dit long...",
+  "Analyse du vocabulaire marketing suspect...",
+  "Stock illimité ? Livraison 3-4 semaines ? 🤡",
+  "Le verdict arrive, patience...",
+  "On lit entre les lignes 📖",
+  "Ces témoignages clients semblent vrais ou non ?",
+  "Vérification du registre WHOIS du domaine...",
+];
+
+const SEARCH_MESSAGES = [
+  "Chasse à l'original lancée 🏹",
+  "On ratisse Amazon, AliExpress, eBay...",
+  "Comparaison des prix en temps réel 💰",
+  "Recherche du vrai fournisseur...",
+  "On interroge toutes les plateformes...",
+  "Le prix fabricant va vous surprendre.",
+  "Quelques secondes encore...",
+];
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function Loader({ messages = IMAGE_MESSAGES, text }) {
+  const [tick, setTick] = useState(0);
+  const queueRef = useRef(shuffle(messages));
+  const posRef = useRef(0);
+
+  useEffect(() => {
+    if (text) return;
+    const id = setInterval(() => {
+      posRef.current += 1;
+      if (posRef.current >= queueRef.current.length) {
+        queueRef.current = shuffle(messages);
+        posRef.current = 0;
+      }
+      setTick((t) => t + 1);
+    }, 2800);
+    return () => clearInterval(id);
+  }, [messages, text]);
+
+  const displayed = text ?? queueRef.current[posRef.current];
+
   return (
     <div className="loader">
       <div className="spinner" />
-      <span>{text}</span>
+      <span key={tick} className="loader-text">{displayed}</span>
     </div>
   );
 }
@@ -163,6 +256,33 @@ function ResultCard({ item }) {
   );
 }
 
+function ResultsGrid({ results }) {
+  const originals = results.filter((r) => r.isOriginal);
+  const others = results.filter((r) => !r.isOriginal);
+  return (
+    <>
+      {originals.length > 0 && (
+        <section>
+          <div className="section-header">
+            <h3>Source fabricant</h3>
+            <span className="pill pill--original">{originals.length} original{originals.length > 1 ? 'aux' : ''}</span>
+          </div>
+          <div className="results-grid">{originals.map((item, i) => <ResultCard key={i} item={item} />)}</div>
+        </section>
+      )}
+      {others.length > 0 && (
+        <section>
+          <div className="section-header">
+            <h3>Comparaison plateformes</h3>
+            <span className="pill">{others.length} résultats</span>
+          </div>
+          <div className="results-grid">{others.map((item, i) => <ResultCard key={i} item={item} />)}</div>
+        </section>
+      )}
+    </>
+  );
+}
+
 /* ── Image mode ── */
 function ImageMode() {
   const [preview, setPreview] = useState(null);
@@ -204,35 +324,10 @@ function ImageMode() {
         <button className="reset-btn" onClick={() => { setPreview(null); setAnalysis(null); setResults([]); setError(''); }}>← Nouvelle analyse</button>
       </div>
       {error && <p className="error">{error}</p>}
-      {loadingAnalysis && <Loader text="Analyse de l'image en cours..." />}
+      {loadingAnalysis && <Loader messages={IMAGE_MESSAGES} />}
       {analysis && <AnalysisCard analysis={analysis} />}
-      {loadingSearch && <Loader text="Recherche sur toutes les plateformes..." />}
-      {results.length > 0 && (() => {
-        const originals = results.filter(r => r.isOriginal);
-        const others = results.filter(r => !r.isOriginal);
-        return (
-          <>
-            {originals.length > 0 && (
-              <section>
-                <div className="section-header">
-                  <h3>Source fabricant</h3>
-                  <span className="pill pill--original">{originals.length} original{originals.length > 1 ? 'aux' : ''}</span>
-                </div>
-                <div className="results-grid">{originals.map((item, i) => <ResultCard key={i} item={item} />)}</div>
-              </section>
-            )}
-            {others.length > 0 && (
-              <section>
-                <div className="section-header">
-                  <h3>Comparaison plateformes</h3>
-                  <span className="pill">{others.length} résultats</span>
-                </div>
-                <div className="results-grid">{others.map((item, i) => <ResultCard key={i} item={item} />)}</div>
-              </section>
-            )}
-          </>
-        );
-      })()}
+      {loadingSearch && <Loader messages={SEARCH_MESSAGES} />}
+      {results.length > 0 && <ResultsGrid results={results} />}
     </div>
   );
 }
@@ -256,7 +351,6 @@ function SiteMode() {
       if (data.error) throw new Error(data.error);
       setSiteAnalysis(data); setLoadingSite(false);
 
-      // Auto-search all detected products
       if (data.produits?.length > 0) {
         setLoadingProducts(true);
         const searches = await Promise.all(
@@ -285,7 +379,7 @@ function SiteMode() {
       </form>
 
       {error && <p className="error">{error}</p>}
-      {loadingSite && <Loader text="Analyse du site en cours..." />}
+      {loadingSite && <Loader messages={SITE_MESSAGES} />}
 
       {siteAnalysis && (
         <div className="results-layout">
@@ -293,39 +387,17 @@ function SiteMode() {
 
           {siteAnalysis.produits?.length > 0 && (
             <>
-              {loadingProducts && <Loader text="Recherche des originaux sur toutes les plateformes..." />}
+              {loadingProducts && <Loader messages={SEARCH_MESSAGES} />}
               {siteAnalysis.produits.map((p) => (
                 <section key={p.nom}>
                   <div className="section-header">
                     <h3>{p.nom}</h3>
                     <span className="pill site-price">Site : {p.prix_site}</span>
                   </div>
-                  {productResults[p.nom]?.results?.length > 0 ? (() => {
-                    const originals = productResults[p.nom].results.filter(r => r.isOriginal);
-                    const others = productResults[p.nom].results.filter(r => !r.isOriginal);
-                    return (
-                      <>
-                        {originals.length > 0 && (
-                          <>
-                            <div className="subsection-label">🏭 Source fabricant</div>
-                            <div className="results-grid" style={{ marginBottom: '16px' }}>
-                              {originals.map((item, i) => <ResultCard key={i} item={item} />)}
-                            </div>
-                          </>
-                        )}
-                        {others.length > 0 && (
-                          <>
-                            <div className="subsection-label">🛒 Comparaison</div>
-                            <div className="results-grid">
-                              {others.map((item, i) => <ResultCard key={i} item={item} />)}
-                            </div>
-                          </>
-                        )}
-                      </>
-                    );
-                  })() : !loadingProducts && (
-                    <p className="no-results">Aucun résultat trouvé pour ce produit.</p>
-                  )}
+                  {productResults[p.nom]?.results?.length > 0
+                    ? <ResultsGrid results={productResults[p.nom].results} />
+                    : !loadingProducts && <p className="no-results">Aucun résultat trouvé pour ce produit.</p>
+                  }
                 </section>
               ))}
             </>
