@@ -268,26 +268,48 @@ function ResultCard({ item }) {
   );
 }
 
+function SectionBanner({ variant, icon, title, desc, pill, pillClass }) {
+  return (
+    <div className={`section-banner section-banner--${variant}`}>
+      <div className="section-banner-main">
+        <span className="section-banner-icon">{icon}</span>
+        <div className="section-banner-text">
+          <h3>{title}</h3>
+          <p>{desc}</p>
+        </div>
+      </div>
+      <span className={`pill ${pillClass ?? ''}`}>{pill}</span>
+    </div>
+  );
+}
+
 function ResultsGrid({ results }) {
   const originals = results.filter((r) => r.isOriginal);
   const others = results.filter((r) => !r.isOriginal);
   return (
     <>
       {originals.length > 0 && (
-        <section>
-          <div className="section-header">
-            <h3>Source fabricant</h3>
-            <span className="pill pill--original">{originals.length} original{originals.length > 1 ? 'aux' : ''}</span>
-          </div>
+        <section className="results-section">
+          <SectionBanner
+            variant="original"
+            icon="🏭"
+            title="Source fabricant"
+            desc="Prix direct du fabricant ou grossiste — c'est là que le dropshipper s'approvisionne avant de revendre 2× à 5× plus cher."
+            pill={`${originals.length} produit${originals.length > 1 ? 's' : ''} trouvé${originals.length > 1 ? 's' : ''}`}
+            pillClass="pill--original"
+          />
           <div className="results-grid">{originals.map((item, i) => <ResultCard key={i} item={item} />)}</div>
         </section>
       )}
       {others.length > 0 && (
-        <section>
-          <div className="section-header">
-            <h3>Comparaison plateformes</h3>
-            <span className="pill">{others.length} résultats</span>
-          </div>
+        <section className="results-section">
+          <SectionBanner
+            variant="compare"
+            icon="🛒"
+            title="Comparaison plateformes"
+            desc="Le même produit vendu sur Amazon, eBay, AliExpress et d'autres marchés — compare les prix avant d'acheter."
+            pill={`${others.length} résultat${others.length > 1 ? 's' : ''}`}
+          />
           <div className="results-grid">{others.map((item, i) => <ResultCard key={i} item={item} />)}</div>
         </section>
       )}

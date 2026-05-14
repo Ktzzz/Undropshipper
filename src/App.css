@@ -231,9 +231,59 @@ h1 {
 }
 .tag.origin { border-color: rgba(99,102,241,0.3); color: #818cf8; }
 
-/* Section header */
+/* Section header (used for product names in site mode) */
 .section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
 .section-header h3 { font-size: 0.8rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+
+/* Section banners */
+.results-section { display: flex; flex-direction: column; gap: 14px; }
+
+.section-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 22px;
+  border-radius: 16px;
+  border: 1px solid;
+  flex-wrap: wrap;
+}
+
+.section-banner--original {
+  background: linear-gradient(135deg, rgba(74,222,128,0.08), rgba(74,222,128,0.02));
+  border-color: rgba(74,222,128,0.28);
+}
+
+.section-banner--compare {
+  background: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(99,102,241,0.02));
+  border-color: rgba(99,102,241,0.28);
+}
+
+.section-banner-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  flex: 1;
+  min-width: 200px;
+}
+
+.section-banner-icon { font-size: 2rem; line-height: 1; flex-shrink: 0; margin-top: 2px; }
+
+.section-banner-text h3 {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.01em;
+  margin-bottom: 5px;
+  text-transform: none;
+}
+
+.section-banner-text p {
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.45;
+  max-width: 480px;
+}
 .pill {
   font-size: 0.72rem; font-weight: 700; padding: 3px 10px;
   border-radius: 999px; background: var(--gradient); color: #fff;
